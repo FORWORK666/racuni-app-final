@@ -106,9 +106,9 @@ async function makePdfBuffer({
     amount: total,
     payerName: clientName,
     receiverName: "Digital&Social j.d.o.o.",
-    receiverAddress: Dumbrova 7,
-    receiverCity: Potpićan,
-    receiverIban: COMPANY_IBAN,
+    receiverAddress: "Dumbrova 7",
+    receiverCity: "Potpićan",
+    receiverIban: "HR7723400091111381969",
     reference: safeInvoiceNumber,
     description: `Racun ${invoiceNumber}`,
   });
