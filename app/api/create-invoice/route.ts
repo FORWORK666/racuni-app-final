@@ -207,7 +207,7 @@ async function makePdfBuffer({
 
   y -= 20;
 
-  page.drawText(clientName, {
+  page.drawText(cleanText(clientName), {
     x: 50,
     y,
     size: 12,
@@ -241,7 +241,7 @@ async function makePdfBuffer({
   y -= 30;
 
   items.forEach((item, index) => {
-    page.drawText(`${index + 1}. ${item.description}`, {
+    page.drawText(`${index + 1}. ${cleanText(item.description)}`, {
       x: 60,
       y,
       size: 11,
@@ -398,10 +398,24 @@ const items: Item[] = body.items;
         { status: 500 }
       );
     }
-
+function cleanText(value: string) {
+  return String(value || "")
+    .replaceAll("č", "c")
+    .replaceAll("ć", "c")
+    .replaceAll("ž", "z")
+    .replaceAll("š", "s")
+    .replaceAll("đ", "d")
+    .replaceAll("Č", "C")
+    .replaceAll("Ć", "C")
+    .replaceAll("Ž", "Z")
+    .replaceAll("Š", "S")
+    .replaceAll("Đ", "D");
+}
     const pdfBuffer = await makePdfBuffer({
       invoiceNumber,
-      clientName,
+      clientName: cleanText(clientName),
+      clientAddress: cleanText(clientAddress),
+      clientOib: cleanText(clientOib),
       items,
       total,
     });
