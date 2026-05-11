@@ -34,16 +34,17 @@ type Item = {
 
 function cleanText(value: string) {
   return String(value || "")
-    .replaceAll("č", "c")
-    .replaceAll("ć", "c")
-    .replaceAll("ž", "z")
-    .replaceAll("š", "s")
-    .replaceAll("đ", "d")
-    .replaceAll("Č", "C")
-    .replaceAll("Ć", "C")
-    .replaceAll("Ž", "Z")
-    .replaceAll("Š", "S")
-    .replaceAll("Đ", "D");
+    .replace(/č/g, "c")
+    .replace(/ć/g, "c")
+    .replace(/ž/g, "z")
+    .replace(/š/g, "s")
+    .replace(/đ/g, "d")
+    .replace(/Č/g, "C")
+    .replace(/Ć/g, "C")
+    .replace(/Ž/g, "Z")
+    .replace(/Š/g, "S")
+    .replace(/Đ/g, "D")
+    .replace(/[^\x00-\x7F]/g, "");
 }
 
 function formatAmountForHub3(amount: number) {
