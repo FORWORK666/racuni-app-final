@@ -20,10 +20,10 @@ const transporter = nodemailer.createTransport({
 });
 
 // PODACI FIRME
-const COMPANY_BRAND = "Elektro M&R";
+const COMPANY_BRAND = "ElektroM&RR";
 const COMPANY_NAME = "Digital & Social j.d.o.o.";
 const COMPANY_ADDRESS = "Dumbrova 7";
-const COMPANY_CITY = "Potpićan";
+const COMPANY_CITY = "Potpican";
 const COMPANY_OIB = "47120481628";
 const COMPANY_IBAN = "HR7723400091111381969";
 
@@ -31,6 +31,20 @@ type Item = {
   description: string;
   price: number;
 };
+
+function cleanText(value: string) {
+  return String(value || "")
+    .replaceAll("č", "c")
+    .replaceAll("ć", "c")
+    .replaceAll("ž", "z")
+    .replaceAll("š", "s")
+    .replaceAll("đ", "d")
+    .replaceAll("Č", "C")
+    .replaceAll("Ć", "C")
+    .replaceAll("Ž", "Z")
+    .replaceAll("Š", "S")
+    .replaceAll("Đ", "D");
+}
 
 function formatAmountForHub3(amount: number) {
   return Math.round(amount * 100).toString().padStart(15, "0");
@@ -59,17 +73,17 @@ function buildHub3Payload({
     "HRVHUB30",
     "EUR",
     formatAmountForHub3(amount),
-    payerName || "",
+    cleanText(payerName),
     "",
     "",
-    receiverName,
-    receiverAddress,
-    receiverCity,
+    cleanText(receiverName),
+    cleanText(receiverAddress),
+    cleanText(receiverCity),
     receiverIban,
     "HR00",
     reference,
     "",
-    description,
+    cleanText(description),
   ].join("\n");
 }
 
@@ -86,18 +100,22 @@ async function makeBarcodeBuffer(payload: string) {
 async function makePdfBuffer({
   invoiceNumber,
   clientName,
+  clientAddress,
+  clientOib,
   items,
   total,
 }: {
   invoiceNumber: string;
   clientName: string;
+  clientAddress: string;
+  clientOib: string;
   items: Item[];
   total: number;
 }) {
   const pdfDoc = await PDFDocument.create();
 
   const page = pdfDoc.addPage([595, 842]);
-  const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   const safeInvoiceNumber = invoiceNumber.replace("/", "-");
@@ -105,10 +123,10 @@ async function makePdfBuffer({
   const hub3Payload = buildHub3Payload({
     amount: total,
     payerName: clientName,
-    receiverName: "Digital&Social j.d.o.o.",
-    receiverAddress: "Dumbrova 7",
-    receiverCity: "Potpićan",
-    receiverIban: "HR7723400091111381969",
+    receiverName: COMPANY_NAME,
+    receiverAddress: COMPANY_ADDRESS,
+    receiverCity: COMPANY_CITY,
+    receiverIban: COMPANY_IBAN,
     reference: safeInvoiceNumber,
     description: `Racun ${invoiceNumber}`,
   });
@@ -118,43 +136,43 @@ async function makePdfBuffer({
 
   let y = 790;
 
-  page.drawText(COMPANY_BRAND, {
+  page.drawText(cleanText(COMPANY_BRAND), {
     x: 50,
     y,
     size: 26,
     font: bold,
   });
 
-  page.drawText(COMPANY_NAME, {
-    x: 360,
+  page.drawText(cleanText(COMPANY_NAME), {
+    x: 350,
     y,
     size: 10,
     font: bold,
   });
 
-  page.drawText(COMPANY_ADDRESS, {
-    x: 360,
+  page.drawText(cleanText(COMPANY_ADDRESS), {
+    x: 350,
     y: y - 15,
     size: 10,
     font,
   });
 
-  page.drawText(COMPANY_CITY, {
-    x: 360,
+  page.drawText(cleanText(COMPANY_CITY), {
+    x: 350,
     y: y - 30,
     size: 10,
     font,
   });
 
   page.drawText(`OIB: ${COMPANY_OIB}`, {
-    x: 360,
+    x: 350,
     y: y - 45,
     size: 10,
     font,
   });
 
   page.drawText(`IBAN: ${COMPANY_IBAN}`, {
-    x: 360,
+    x: 350,
     y: y - 60,
     size: 10,
     font,
@@ -180,7 +198,7 @@ async function makePdfBuffer({
 
   y -= 30;
 
-  page.drawText(`Broj racuna: ${invoiceNumber}`, {
+  page.drawText(`Broj racuna: ${safeInvoiceNumber}`, {
     x: 50,
     y,
     size: 12,
@@ -213,6 +231,26 @@ async function makePdfBuffer({
     size: 12,
     font,
   });
+
+  if (clientAddress) {
+    y -= 15;
+    page.drawText(cleanText(clientAddress), {
+      x: 50,
+      y,
+      size: 11,
+      font,
+    });
+  }
+
+  if (clientOib) {
+    y -= 15;
+    page.drawText(`OIB: ${cleanText(clientOib)}`, {
+      x: 50,
+      y,
+      size: 11,
+      font,
+    });
+  }
 
   y -= 50;
 
@@ -276,7 +314,7 @@ async function makePdfBuffer({
     font: bold,
   });
 
-  y -= 120;
+  y -= 100;
 
   page.drawText("Skeniraj za placanje", {
     x: 50,
@@ -285,18 +323,18 @@ async function makePdfBuffer({
     font: bold,
   });
 
-  const barcodeDims = barcodeImage.scale(0.55);
+  const barcodeDims = barcodeImage.scale(0.5);
 
   page.drawImage(barcodeImage, {
     x: 50,
-    y: y - 95,
+    y: y - 90,
     width: barcodeDims.width,
     height: barcodeDims.height,
   });
 
   page.drawText(`Model: HR00 | Poziv na broj: ${safeInvoiceNumber}`, {
     x: 50,
-    y: y - 110,
+    y: y - 105,
     size: 9,
     font,
   });
@@ -337,10 +375,10 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-   const clientName = body.clientName;
-const clientAddress = body.clientAddress || "";
-const clientOib = body.clientOib || "";
-const items: Item[] = body.items;
+    const clientName = body.clientName || "";
+    const clientAddress = body.clientAddress || "";
+    const clientOib = body.clientOib || "";
+    const items: Item[] = body.items || [];
 
     if (!clientName || !items || items.length === 0) {
       return NextResponse.json(
@@ -371,6 +409,8 @@ const items: Item[] = body.items;
         {
           invoice_number: invoiceNumber,
           client_name: clientName,
+          client_address: clientAddress,
+          client_oib: clientOib,
           total,
         },
       ])
@@ -398,24 +438,12 @@ const items: Item[] = body.items;
         { status: 500 }
       );
     }
-function cleanText(value: string) {
-  return String(value || "")
-    .replaceAll("č", "c")
-    .replaceAll("ć", "c")
-    .replaceAll("ž", "z")
-    .replaceAll("š", "s")
-    .replaceAll("đ", "d")
-    .replaceAll("Č", "C")
-    .replaceAll("Ć", "C")
-    .replaceAll("Ž", "Z")
-    .replaceAll("Š", "S")
-    .replaceAll("Đ", "D");
-}
+
     const pdfBuffer = await makePdfBuffer({
       invoiceNumber,
-      clientName: cleanText(clientName),
-      clientAddress: cleanText(clientAddress),
-      clientOib: cleanText(clientOib),
+      clientName,
+      clientAddress,
+      clientOib,
       items,
       total,
     });
