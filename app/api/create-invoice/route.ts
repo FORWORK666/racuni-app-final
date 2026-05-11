@@ -97,7 +97,7 @@ async function makePdfBuffer({
   const pdfDoc = await PDFDocument.create();
 
   const page = pdfDoc.addPage([595, 842]);
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   const safeInvoiceNumber = invoiceNumber.replace("/", "-");
