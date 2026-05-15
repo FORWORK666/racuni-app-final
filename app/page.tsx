@@ -276,38 +276,63 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="w-full min-w-0 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-5 sm:p-8">
-          <h2 className="mb-6 text-2xl font-bold">Zadnji računi</h2>
+       <section className="w-full rounded-3xl border border-zinc-800 bg-zinc-900 p-5 sm:p-8 overflow-hidden">
+  <h2 className="mb-6 text-3xl font-bold text-white">
+    Nova ponuda
+  </h2>
 
-          <div className="space-y-3">
-            {invoices.length === 0 && (
-              <p className="text-zinc-500">Nema računa.</p>
-            )}
+  <div className="space-y-5">
 
-            {invoices.map((invoice) => (
-              <div
-                key={invoice.id}
-                className="w-full min-w-0 rounded-2xl border border-zinc-800 bg-black p-4"
-              >
-                <div className="flex min-w-0 items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">
-                      {invoice.client_name}
-                    </p>
+    <div>
+      <label className="mb-2 block text-sm text-zinc-400">
+        Naziv klijenta
+      </label>
 
-                    <p className="truncate text-sm text-zinc-500">
-                      #{invoice.invoice_number}
-                    </p>
-                  </div>
+      <input
+        className="w-full rounded-xl border border-zinc-700 bg-black px-4 py-3"
+      />
+    </div>
 
-                  <p className="shrink-0 text-lg font-bold">
-                    {Number(invoice.total).toFixed(2)} €
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+    <div>
+      <label className="mb-2 block text-sm text-zinc-400">
+        Adresa klijenta
+      </label>
+
+      <input
+        className="w-full rounded-xl border border-zinc-700 bg-black px-4 py-3"
+      />
+    </div>
+
+    <div>
+      <label className="mb-2 block text-sm text-zinc-400">
+        OIB klijenta
+      </label>
+
+      <input
+        className="w-full rounded-xl border border-zinc-700 bg-black px-4 py-3"
+      />
+    </div>
+
+    <div>
+      <label className="mb-2 block text-sm text-zinc-400">
+        Napomena ponude
+      </label>
+
+      <textarea
+        rows={5}
+        placeholder="Rok izvođenja, način plaćanja..."
+        className="w-full rounded-xl border border-zinc-700 bg-black px-4 py-3"
+      />
+    </div>
+
+    <button
+      className="w-full rounded-xl bg-green-600 py-4 font-bold text-white"
+    >
+      Pošalji ponudu PDF
+    </button>
+
+  </div>
+</section>
       </div>
     </main>
   );
