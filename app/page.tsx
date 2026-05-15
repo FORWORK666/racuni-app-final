@@ -61,15 +61,29 @@ export default function Home() {
     setItems(updated);
   }
 
+  function resetForm() {
+    setClientName("");
+    setClientAddress("");
+    setClientOib("");
+    setItems([
+      {
+        description: "",
+        price: "",
+      },
+    ]);
+  }
+
+  function getValidItems() {
+    return items.filter((item) => item.description.trim() && item.price);
+  }
+
   async function createInvoice() {
     if (!clientName.trim()) {
       alert("Upiši klijenta");
       return;
     }
 
-    const filteredItems = items.filter(
-      (item) => item.description.trim() && item.price
-    );
+    const filteredItems = getValidItems();
 
     if (filteredItems.length === 0) {
       alert("Dodaj stavke");
@@ -95,7 +109,6 @@ export default function Home() {
     });
 
     const result = await response.json();
-
     setLoading(false);
 
     if (!response.ok) {
@@ -104,19 +117,55 @@ export default function Home() {
       return;
     }
 
-    setClientName("");
-    setClientAddress("");
-    setClientOib("");
-    setItems([
-      {
-        description: "",
-        price: "",
-      },
-    ]);
-
+    resetForm();
     await loadInvoices();
 
     alert(`Račun ${result.invoiceNumber} spremljen i poslan na Gmail`);
+  }
+
+  async function createOffer() {
+    if (!clientName.trim()) {
+      alert("Upiši klijenta");
+      return;
+    }
+
+    const filteredItems = getValidItems();
+
+    if (filteredItems.length === 0) {
+      alert("Dodaj stavke");
+      return;
+    }
+
+    setLoading(true);
+
+    const response = await fetch("/api/create-offer", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        clientName,
+        clientAddress,
+        clientOib,
+        items: filteredItems.map((item) => ({
+          description: item.description,
+          price: Number(item.price),
+        })),
+      }),
+    });
+
+    const result = await response.json();
+    setLoading(false);
+
+    if (!response.ok) {
+      console.log(result);
+      alert(result.error || "Greška kod kreiranja ponude");
+      return;
+    }
+
+    resetForm();
+
+    alert(`Ponuda ${result.offerNumber} spremljena i poslana na Gmail`);
   }
 
   useEffect(() => {
@@ -127,7 +176,7 @@ export default function Home() {
     <main className="min-h-screen w-full overflow-x-hidden bg-black px-3 py-4 text-white sm:px-6">
       <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 lg:grid-cols-2">
         <section className="w-full min-w-0 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-5 sm:p-8">
-          <h1 className="mb-8 break-words text-3xl font-bold leading-tight sm:text-4xl">
+          <h1 className="mb-8 break-word text-3xl font-bold leading-tight sm:text-4xl">
             ElektroM&RR
           </h1>
 
@@ -207,13 +256,23 @@ export default function Home() {
               + Dodaj stavku
             </button>
 
-            <button
-              onClick={createInvoice}
-              disabled={loading}
-              className="w-full rounded-xl bg-blue-600 py-4 font-bold text-white disabled:opacity-50"
-            >
-              {loading ? "Spremam i šaljem..." : "Kreiraj račun"}
-            </button>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                onClick={createInvoice}
+                disabled={loading}
+                className="w-full rounded-xl bg-blue-600 py-4 font-bold text-white disabled:opacity-50"
+              >
+                {loading ? "Šaljem..." : "Kreiraj račun"}
+              </button>
+
+              <button
+                onClick={createOffer}
+                disabled={loading}
+                className="w-full rounded-xl bg-emerald-600 py-4 font-bold text-white disabled:opacity-50"
+              >
+                {loading ? "Šaljem..." : "Kreiraj ponudu"}
+              </button>
+            </div>
           </div>
         </section>
 
