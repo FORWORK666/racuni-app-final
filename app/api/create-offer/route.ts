@@ -45,6 +45,10 @@ function cleanText(value: string) {
     .replace(/[^\x00-\x7F]/g, "");
 }
 
+function formatMoney(value: number) {
+  return `${Number(value).toFixed(2)} EUR`;
+}
+
 async function makeOfferPdfBuffer({
   offerNumber,
   clientName,
@@ -63,233 +67,293 @@ async function makeOfferPdfBuffer({
   total: number;
 }) {
   const pdfDoc = await PDFDocument.create();
-
   const page = pdfDoc.addPage([595, 842]);
+
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   let y = 790;
 
-  page.drawText(cleanText(COMPANY_BRAND), {
-    x: 50,
-    y,
-    size: 26,
-    font: bold,
+  // HEADER BACKGROUND
+  page.drawRectangle({
+    x: 40,
+    y: 740,
+    width: 515,
+    height: 70,
+    color: rgb(0.06, 0.06, 0.07),
   });
 
+  // BRAND
+  page.drawText(cleanText(COMPANY_BRAND), {
+    x: 55,
+    y: 782,
+    size: 24,
+    font: bold,
+    color: rgb(1, 1, 1),
+  });
+
+  page.drawText("podbrend za elektro, klima i terenske usluge", {
+    x: 55,
+    y: 762,
+    size: 8,
+    font,
+    color: rgb(0.82, 0.82, 0.82),
+  });
+
+  // LEGAL COMPANY
   page.drawText(cleanText(COMPANY_NAME), {
     x: 350,
-    y,
+    y: 785,
     size: 10,
     font: bold,
+    color: rgb(1, 1, 1),
   });
 
   page.drawText(cleanText(COMPANY_ADDRESS), {
     x: 350,
-    y: y - 15,
-    size: 10,
+    y: 770,
+    size: 9,
     font,
+    color: rgb(0.9, 0.9, 0.9),
   });
 
   page.drawText(cleanText(COMPANY_CITY), {
     x: 350,
-    y: y - 30,
-    size: 10,
+    y: 756,
+    size: 9,
     font,
+    color: rgb(0.9, 0.9, 0.9),
   });
 
   page.drawText(`OIB: ${COMPANY_OIB}`, {
     x: 350,
-    y: y - 45,
-    size: 10,
+    y: 742,
+    size: 9,
+    font,
+    color: rgb(0.9, 0.9, 0.9),
+  });
+
+  y = 700;
+
+  // DOCUMENT TITLE
+  page.drawText("PONUDA", {
+    x: 50,
+    y,
+    size: 28,
+    font: bold,
+    color: rgb(0.05, 0.05, 0.05),
+  });
+
+  page.drawText(`Broj ponude: ${cleanText(offerNumber)}`, {
+    x: 50,
+    y: y - 28,
+    size: 11,
+    font,
+  });
+
+  page.drawText(`Datum izdavanja: ${new Date().toLocaleDateString("hr-HR")}`, {
+    x: 50,
+    y: y - 44,
+    size: 11,
     font,
   });
 
   page.drawText(`IBAN: ${COMPANY_IBAN}`, {
     x: 350,
-    y: y - 60,
+    y: y - 28,
     size: 10,
     font,
   });
 
-  y -= 100;
-
-  page.drawLine({
-    start: { x: 50, y },
-    end: { x: 545, y },
-    thickness: 1,
-    color: rgb(0.8, 0.8, 0.8),
-  });
-
-  y -= 45;
-
-  page.drawText("PONUDA", {
-    x: 50,
-    y,
-    size: 24,
-    font: bold,
-  });
-
-  y -= 30;
-
-  page.drawText(`Broj ponude: ${cleanText(offerNumber)}`, {
-    x: 50,
-    y,
-    size: 12,
+  page.drawText("Placanje: po prihvacanju ponude / dogovoru", {
+    x: 350,
+    y: y - 44,
+    size: 10,
     font,
   });
 
-  y -= 18;
+  y -= 90;
 
-  page.drawText(`Datum: ${new Date().toLocaleDateString("hr-HR")}`, {
+  // CLIENT BOX
+  page.drawRectangle({
     x: 50,
-    y,
-    size: 12,
-    font,
+    y: y - 70,
+    width: 495,
+    height: 75,
+    borderColor: rgb(0.82, 0.82, 0.82),
+    borderWidth: 1,
   });
 
-  y -= 45;
-
-  page.drawText("Klijent:", {
-    x: 50,
-    y,
-    size: 13,
+  page.drawText("KLIJENT", {
+    x: 65,
+    y: y - 18,
+    size: 10,
     font: bold,
+    color: rgb(0.25, 0.25, 0.25),
   });
-
-  y -= 20;
 
   page.drawText(cleanText(clientName), {
-    x: 50,
-    y,
+    x: 65,
+    y: y - 36,
     size: 12,
-    font,
+    font: bold,
   });
 
   if (clientAddress) {
-    y -= 15;
     page.drawText(cleanText(clientAddress), {
-      x: 50,
-      y,
-      size: 11,
+      x: 65,
+      y: y - 52,
+      size: 10,
       font,
     });
   }
 
   if (clientOib) {
-    y -= 15;
     page.drawText(`OIB: ${cleanText(clientOib)}`, {
-      x: 50,
-      y,
-      size: 11,
+      x: 350,
+      y: y - 36,
+      size: 10,
       font,
     });
   }
 
-  y -= 50;
+  y -= 115;
 
+  // TABLE HEADER
   page.drawRectangle({
     x: 50,
     y: y - 8,
     width: 495,
-    height: 28,
+    height: 30,
     color: rgb(0.93, 0.93, 0.93),
   });
 
-  page.drawText("Opis usluge", {
-    x: 60,
+  page.drawText("Opis usluge / radova", {
+    x: 65,
     y,
     size: 11,
     font: bold,
   });
 
   page.drawText("Iznos", {
-    x: 440,
+    x: 445,
     y,
     size: 11,
     font: bold,
   });
 
-  y -= 30;
+  y -= 35;
 
+  // ITEMS
   items.forEach((item, index) => {
     page.drawText(`${index + 1}. ${cleanText(item.description)}`, {
-      x: 60,
+      x: 65,
       y,
-      size: 11,
+      size: 10,
+      font,
+      maxWidth: 350,
+    });
+
+    page.drawText(formatMoney(item.price), {
+      x: 420,
+      y,
+      size: 10,
       font,
     });
 
-    page.drawText(`${Number(item.price).toFixed(2)} EUR`, {
-      x: 430,
-      y,
-      size: 11,
-      font,
+    page.drawLine({
+      start: { x: 50, y: y - 8 },
+      end: { x: 545, y: y - 8 },
+      thickness: 0.5,
+      color: rgb(0.88, 0.88, 0.88),
     });
 
-    y -= 24;
+    y -= 26;
   });
 
   y -= 20;
 
+  // TOTAL BOX
+  page.drawRectangle({
+    x: 335,
+    y: y - 20,
+    width: 210,
+    height: 42,
+    color: rgb(0.06, 0.06, 0.07),
+  });
+
+  page.drawText("UKUPNO:", {
+    x: 350,
+    y: y + 5,
+    size: 11,
+    font: bold,
+    color: rgb(1, 1, 1),
+  });
+
+  page.drawText(formatMoney(total), {
+    x: 425,
+    y: y + 5,
+    size: 13,
+    font: bold,
+    color: rgb(1, 1, 1),
+  });
+
+  y -= 85;
+
+  // NOTE
+  page.drawText("Napomena:", {
+    x: 50,
+    y,
+    size: 12,
+    font: bold,
+  });
+
+  y -= 18;
+
+  page.drawRectangle({
+    x: 50,
+    y: y - 55,
+    width: 495,
+    height: 65,
+    borderColor: rgb(0.86, 0.86, 0.86),
+    borderWidth: 1,
+  });
+
+  page.drawText(cleanText(note || "Ponuda vrijedi 7 dana od datuma izdavanja."), {
+    x: 65,
+    y: y - 18,
+    size: 10,
+    font,
+    maxWidth: 455,
+    lineHeight: 13,
+  });
+
+  // FOOTER
   page.drawLine({
-    start: { x: 50, y },
-    end: { x: 545, y },
+    start: { x: 50, y: 105 },
+    end: { x: 545, y: 105 },
     thickness: 1,
     color: rgb(0.8, 0.8, 0.8),
   });
 
-  y -= 35;
-
-  page.drawText(`UKUPNO: ${Number(total).toFixed(2)} EUR`, {
-    x: 350,
-    y,
-    size: 16,
-    font: bold,
-  });
-
-  if (note) {
-    y -= 55;
-
-    page.drawText("Napomena:", {
-      x: 50,
-      y,
-      size: 12,
-      font: bold,
-    });
-
-    y -= 18;
-
-    const noteText = cleanText(note).slice(0, 300);
-
-    page.drawText(noteText, {
-      x: 50,
-      y,
-      size: 10,
-      font,
-      maxWidth: 480,
-      lineHeight: 13,
-    });
-  }
-
-  page.drawText("Ova ponuda vrijedi 7 dana od datuma izdavanja.", {
+  page.drawText("Ponuda je informativna do prihvacanja i dogovora termina izvedbe.", {
     x: 50,
     y: 85,
-    size: 10,
+    size: 9,
     font,
   });
 
   page.drawText("PDV nije obracunan temeljem cl. 90. st. 2. Zakona o PDV-u.", {
     x: 50,
     y: 70,
-    size: 10,
+    size: 9,
     font,
   });
 
-  page.drawText("Hvala na povjerenju.", {
+  page.drawText(`${cleanText(COMPANY_BRAND)} / ${cleanText(COMPANY_NAME)} / OIB: ${COMPANY_OIB}`, {
     x: 50,
     y: 55,
-    size: 10,
+    size: 8,
     font,
   });
 
