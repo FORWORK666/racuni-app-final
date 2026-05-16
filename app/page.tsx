@@ -1,14 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/src/lib/supabase";
+import { useState } from "react";
 
-type Invoice = {
-  id: string;
-  invoice_number: string;
-  client_name: string;
-  total: number;
-};
+
 
 type Item = {
   description: string;
@@ -29,18 +23,11 @@ export default function Home() {
     { description: "", price: "" },
   ]);
 
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [offerLoading, setOfferLoading] = useState(false);
 
-  async function loadInvoices() {
-    const { data } = await supabase
-      .from("invoices")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (data) setInvoices(data);
-  }
+  
 
   function updateItem(
     list: Item[],
@@ -90,7 +77,7 @@ export default function Home() {
     setClientAddress("");
     setClientOib("");
     setItems([{ description: "", price: "" }]);
-    await loadInvoices();
+   
 
     alert(`Račun ${result.invoiceNumber} poslan na Gmail`);
   }
@@ -137,9 +124,7 @@ export default function Home() {
     alert(`Ponuda ${result.offerNumber} poslana na Gmail`);
   }
 
-  useEffect(() => {
-    loadInvoices();
-  }, []);
+  
 
   return (
     <main className="min-h-screen bg-black px-3 py-4 text-white sm:px-6">
@@ -168,20 +153,6 @@ export default function Home() {
             <button onClick={createInvoice} disabled={invoiceLoading} className="w-full rounded-xl bg-blue-600 py-4 font-bold disabled:opacity-50">
               {invoiceLoading ? "Šaljem račun..." : "Pošalji račun PDF"}
             </button>
-
-            <h2 className="pt-6 text-2xl font-bold">Zadnji računi</h2>
-
-            {invoices.map((invoice) => (
-              <div key={invoice.id} className="rounded-2xl bg-black p-4">
-                <div className="flex justify-between gap-4">
-                  <div>
-                    <p className="font-bold">{invoice.client_name}</p>
-                    <p className="text-sm text-zinc-500">#{invoice.invoice_number}</p>
-                  </div>
-                  <p className="font-bold">{Number(invoice.total).toFixed(2)} €</p>
-                </div>
-              </div>
-            ))}
           </div>
         </section>
 
