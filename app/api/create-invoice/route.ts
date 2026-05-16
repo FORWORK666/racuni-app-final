@@ -20,7 +20,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // PODACI FIRME
-const COMPANY_BRAND = "ElektroM&RR";
+const COMPANY_BRAND = "ElektroM&R";
 const COMPANY_NAME = "Digital & Social j.d.o.o.";
 const COMPANY_ADDRESS = "Dumbrova 7";
 const COMPANY_CITY = "Potpican";
