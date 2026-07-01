@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import bwipjs from "bwip-js";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 const supabase = createClient(
@@ -18,6 +19,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// PODACI FIRME
 const COMPANY_BRAND = "ElektroM&R";
 const COMPANY_NAME = "Digital & Social j.d.o.o.";
 const COMPANY_ADDRESS = "Dumbrova 7";
@@ -45,315 +47,324 @@ function cleanText(value: string) {
     .replace(/[^\x00-\x7F]/g, "");
 }
 
-function formatMoney(value: number) {
-  return `${Number(value).toFixed(2)} EUR`;
+function formatAmountForHub3(amount: number) {
+  return Math.round(amount * 100).toString().padStart(15, "0");
 }
 
-async function makeOfferPdfBuffer({
-  offerNumber,
+function buildHub3Payload({
+  amount,
+  payerName,
+  receiverName,
+  receiverAddress,
+  receiverCity,
+  receiverIban,
+  reference,
+  description,
+}: {
+  amount: number;
+  payerName: string;
+  receiverName: string;
+  receiverAddress: string;
+  receiverCity: string;
+  receiverIban: string;
+  reference: string;
+  description: string;
+}) {
+  return [
+    "HRVHUB30",
+    "EUR",
+    formatAmountForHub3(amount),
+    cleanText(payerName),
+    "",
+    "",
+    cleanText(receiverName),
+    cleanText(receiverAddress),
+    cleanText(receiverCity),
+    receiverIban,
+    "HR00",
+    reference,
+    "",
+    cleanText(description),
+  ].join("\n");
+}
+
+async function makeBarcodeBuffer(payload: string) {
+  return bwipjs.toBuffer({
+    bcid: "pdf417",
+    text: payload,
+    scale: 2,
+    columns: 9,
+    eclevel: 4,
+  });
+}
+
+async function makePdfBuffer({
+  invoiceNumber,
   clientName,
   clientAddress,
   clientOib,
-  note,
   items,
   total,
 }: {
-  offerNumber: string;
+  invoiceNumber: string;
   clientName: string;
   clientAddress: string;
   clientOib: string;
-  note: string;
   items: Item[];
   total: number;
 }) {
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595, 842]);
 
+  const page = pdfDoc.addPage([595, 842]);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
+  const safeInvoiceNumber = invoiceNumber.replace("/", "-");
+
+  const hub3Payload = buildHub3Payload({
+    amount: total,
+    payerName: clientName,
+    receiverName: COMPANY_NAME,
+    receiverAddress: COMPANY_ADDRESS,
+    receiverCity: COMPANY_CITY,
+    receiverIban: COMPANY_IBAN,
+    reference: safeInvoiceNumber,
+    description: `Racun ${invoiceNumber}`,
+  });
+
+  const barcodePng = await makeBarcodeBuffer(hub3Payload);
+  const barcodeImage = await pdfDoc.embedPng(barcodePng);
+
   let y = 790;
 
-  // HEADER BACKGROUND
-  page.drawRectangle({
-    x: 40,
-    y: 740,
-    width: 515,
-    height: 70,
-    color: rgb(0.06, 0.06, 0.07),
-  });
-
-  // BRAND
   page.drawText(cleanText(COMPANY_BRAND), {
-    x: 55,
-    y: 782,
-    size: 24,
+    x: 50,
+    y,
+    size: 26,
     font: bold,
-    color: rgb(1, 1, 1),
   });
 
-  page.drawText("podbrend za elektro, klima i terenske usluge", {
-    x: 55,
-    y: 762,
-    size: 8,
-    font,
-    color: rgb(0.82, 0.82, 0.82),
-  });
-
-  // LEGAL COMPANY
   page.drawText(cleanText(COMPANY_NAME), {
     x: 350,
-    y: 785,
+    y,
     size: 10,
     font: bold,
-    color: rgb(1, 1, 1),
   });
 
   page.drawText(cleanText(COMPANY_ADDRESS), {
     x: 350,
-    y: 770,
-    size: 9,
+    y: y - 15,
+    size: 10,
     font,
-    color: rgb(0.9, 0.9, 0.9),
   });
 
   page.drawText(cleanText(COMPANY_CITY), {
     x: 350,
-    y: 756,
-    size: 9,
+    y: y - 30,
+    size: 10,
     font,
-    color: rgb(0.9, 0.9, 0.9),
   });
 
   page.drawText(`OIB: ${COMPANY_OIB}`, {
     x: 350,
-    y: 742,
-    size: 9,
-    font,
-    color: rgb(0.9, 0.9, 0.9),
-  });
-
-  y = 700;
-
-  // DOCUMENT TITLE
-  page.drawText("PONUDA", {
-    x: 50,
-    y,
-    size: 28,
-    font: bold,
-    color: rgb(0.05, 0.05, 0.05),
-  });
-
-  page.drawText(`Broj ponude: ${cleanText(offerNumber)}`, {
-    x: 50,
-    y: y - 28,
-    size: 11,
-    font,
-  });
-
-  page.drawText(`Datum izdavanja: ${new Date().toLocaleDateString("hr-HR")}`, {
-    x: 50,
-    y: y - 44,
-    size: 11,
+    y: y - 45,
+    size: 10,
     font,
   });
 
   page.drawText(`IBAN: ${COMPANY_IBAN}`, {
     x: 350,
-    y: y - 28,
+    y: y - 60,
     size: 10,
     font,
   });
 
-  page.drawText("Placanje: po prihvacanju ponude / dogovoru", {
-    x: 350,
-    y: y - 44,
-    size: 10,
-    font,
+  y -= 100;
+
+  page.drawLine({
+    start: { x: 50, y },
+    end: { x: 545, y },
+    thickness: 1,
+    color: rgb(0.8, 0.8, 0.8),
   });
 
-  y -= 90;
+  y -= 45;
 
-  // CLIENT BOX
-  page.drawRectangle({
+  page.drawText("RACUN", {
     x: 50,
-    y: y - 70,
-    width: 495,
-    height: 75,
-    borderColor: rgb(0.82, 0.82, 0.82),
-    borderWidth: 1,
+    y,
+    size: 24,
+    font: bold,
   });
 
-  page.drawText("KLIJENT", {
-    x: 65,
-    y: y - 18,
-    size: 10,
-    font: bold,
-    color: rgb(0.25, 0.25, 0.25),
+  y -= 30;
+
+  page.drawText(`Broj racuna: ${safeInvoiceNumber}`, {
+    x: 50,
+    y,
+    size: 12,
+    font,
   });
+
+  y -= 18;
+
+  page.drawText(`Datum: ${new Date().toLocaleDateString("hr-HR")}`, {
+    x: 50,
+    y,
+    size: 12,
+    font,
+  });
+
+  y -= 45;
+
+  page.drawText("Kupac:", {
+    x: 50,
+    y,
+    size: 13,
+    font: bold,
+  });
+
+  y -= 20;
 
   page.drawText(cleanText(clientName), {
-    x: 65,
-    y: y - 36,
+    x: 50,
+    y,
     size: 12,
-    font: bold,
+    font,
   });
 
   if (clientAddress) {
+    y -= 15;
     page.drawText(cleanText(clientAddress), {
-      x: 65,
-      y: y - 52,
-      size: 10,
+      x: 50,
+      y,
+      size: 11,
       font,
     });
   }
 
   if (clientOib) {
+    y -= 15;
     page.drawText(`OIB: ${cleanText(clientOib)}`, {
-      x: 350,
-      y: y - 36,
-      size: 10,
+      x: 50,
+      y,
+      size: 11,
       font,
     });
   }
 
-  y -= 115;
+  y -= 50;
 
-  // TABLE HEADER
   page.drawRectangle({
     x: 50,
     y: y - 8,
     width: 495,
-    height: 30,
+    height: 28,
     color: rgb(0.93, 0.93, 0.93),
   });
 
-  page.drawText("Opis usluge / radova", {
-    x: 65,
+  page.drawText("Opis usluge", {
+    x: 60,
     y,
     size: 11,
     font: bold,
   });
 
   page.drawText("Iznos", {
-    x: 445,
+    x: 440,
     y,
     size: 11,
     font: bold,
   });
 
-  y -= 35;
+  y -= 30;
 
-  // ITEMS
   items.forEach((item, index) => {
     page.drawText(`${index + 1}. ${cleanText(item.description)}`, {
-      x: 65,
+      x: 60,
       y,
-      size: 10,
-      font,
-      maxWidth: 350,
-    });
-
-    page.drawText(formatMoney(item.price), {
-      x: 420,
-      y,
-      size: 10,
+      size: 11,
       font,
     });
 
-    page.drawLine({
-      start: { x: 50, y: y - 8 },
-      end: { x: 545, y: y - 8 },
-      thickness: 0.5,
-      color: rgb(0.88, 0.88, 0.88),
+    page.drawText(`${Number(item.price).toFixed(2)} EUR`, {
+      x: 430,
+      y,
+      size: 11,
+      font,
     });
 
-    y -= 26;
+    y -= 24;
   });
 
   y -= 20;
 
-  // TOTAL BOX
-  page.drawRectangle({
-    x: 335,
-    y: y - 20,
-    width: 210,
-    height: 42,
-    color: rgb(0.06, 0.06, 0.07),
-  });
-
-  page.drawText("UKUPNO:", {
-    x: 350,
-    y: y + 5,
-    size: 11,
-    font: bold,
-    color: rgb(1, 1, 1),
-  });
-
-  page.drawText(formatMoney(total), {
-    x: 425,
-    y: y + 5,
-    size: 13,
-    font: bold,
-    color: rgb(1, 1, 1),
-  });
-
-  y -= 85;
-
-  // NOTE
-  page.drawText("Napomena:", {
-    x: 50,
-    y,
-    size: 12,
-    font: bold,
-  });
-
-  y -= 18;
-
-  page.drawRectangle({
-    x: 50,
-    y: y - 55,
-    width: 495,
-    height: 65,
-    borderColor: rgb(0.86, 0.86, 0.86),
-    borderWidth: 1,
-  });
-
-  page.drawText(cleanText(note || "Ponuda vrijedi 7 dana od datuma izdavanja."), {
-    x: 65,
-    y: y - 18,
-    size: 10,
-    font,
-    maxWidth: 455,
-    lineHeight: 13,
-  });
-
-  // FOOTER
   page.drawLine({
-    start: { x: 50, y: 105 },
-    end: { x: 545, y: 105 },
+    start: { x: 50, y },
+    end: { x: 545, y },
     thickness: 1,
     color: rgb(0.8, 0.8, 0.8),
   });
 
-  page.drawText("Ponuda je informativna do prihvacanja i dogovora termina izvedbe.", {
+  y -= 35;
+
+  page.drawText(`UKUPNO: ${Number(total).toFixed(2)} EUR`, {
+    x: 350,
+    y,
+    size: 16,
+    font: bold,
+  });
+
+  y -= 100;
+
+  page.drawText("Skeniraj za placanje", {
+    x: 50,
+    y,
+    size: 13,
+    font: bold,
+  });
+
+  const barcodeDims = barcodeImage.scale(0.5);
+
+  page.drawImage(barcodeImage, {
+    x: 50,
+    y: y - 90,
+    width: barcodeDims.width,
+    height: barcodeDims.height,
+  });
+
+  page.drawText(`Model: HR00 | Poziv na broj: ${safeInvoiceNumber}`, {
+    x: 50,
+    y: y - 105,
+    size: 9,
+    font,
+  });
+
+  page.drawText("Nacin placanja: uplata na racun", {
+    x: 50,
+    y: 100,
+    size: 10,
+    font,
+  });
+
+  page.drawText("Placanje: odmah", {
     x: 50,
     y: 85,
-    size: 9,
+    size: 10,
+    font,
+  });
+
+  page.drawText("Model racuna: R1", {
+    x: 50,
+    y: 70,
+    size: 10,
     font,
   });
 
   page.drawText("PDV nije obracunan temeljem cl. 90. st. 2. Zakona o PDV-u.", {
     x: 50,
-    y: 70,
-    size: 9,
-    font,
-  });
-
-  page.drawText(`${cleanText(COMPANY_BRAND)} / ${cleanText(COMPANY_NAME)} / OIB: ${COMPANY_OIB}`, {
-    x: 50,
     y: 55,
-    size: 8,
+    size: 10,
     font,
   });
 
@@ -368,12 +379,11 @@ export async function POST(req: Request) {
     const clientName = body.clientName || "";
     const clientAddress = body.clientAddress || "";
     const clientOib = body.clientOib || "";
-    const note = body.note || "";
     const items: Item[] = body.items || [];
 
     if (!clientName || items.length === 0) {
       return NextResponse.json(
-        { error: "Nedostaju podaci za ponudu." },
+        { error: "Nedostaju podaci za racun." },
         { status: 400 }
       );
     }
@@ -381,44 +391,33 @@ export async function POST(req: Request) {
     const total = items.reduce((sum, item) => sum + Number(item.price), 0);
     const year = new Date().getFullYear();
 
-    const { count, error: countError } = await supabase
-      .from("offers")
-      .select("*", { count: "exact", head: true });
+    // Privremeno stabilno numeriranje bez Supabase count-a
+    const invoiceNumber = `${Date.now()}/${year}`;
 
-    if (countError) {
-      return NextResponse.json(
-        { error: `SUPABASE COUNT ERROR: ${countError.message}` },
-        { status: 500 }
-      );
-    }
-
-    const offerNumber = `${(count || 0) + 1}-P/${year}`;
-
-    const { data: offer, error: offerError } = await supabase
-      .from("offers")
+    const { data: invoice, error: invoiceError } = await supabase
+      .from("invoices")
       .insert([
         {
-          offer_number: offerNumber,
+          invoice_number: invoiceNumber,
           client_name: clientName,
           client_address: clientAddress,
           client_oib: clientOib,
           total,
-          status: "draft",
         },
       ])
       .select()
       .single();
 
-    if (offerError) {
+    if (invoiceError) {
       return NextResponse.json(
-        { error: `SUPABASE OFFER ERROR: ${offerError.message}` },
+        { error: `SUPABASE INVOICE ERROR: ${invoiceError.message}` },
         { status: 500 }
       );
     }
 
-    const { error: itemsError } = await supabase.from("offer_items").insert(
+    const { error: itemsError } = await supabase.from("invoice_items").insert(
       items.map((item) => ({
-        offer_id: offer.id,
+        invoice_id: invoice.id,
         description: item.description,
         price: Number(item.price),
       }))
@@ -426,17 +425,16 @@ export async function POST(req: Request) {
 
     if (itemsError) {
       return NextResponse.json(
-        { error: `SUPABASE OFFER ITEMS ERROR: ${itemsError.message}` },
+        { error: `SUPABASE ITEMS ERROR: ${itemsError.message}` },
         { status: 500 }
       );
     }
 
-    const pdfBuffer = await makeOfferPdfBuffer({
-      offerNumber,
+    const pdfBuffer = await makePdfBuffer({
+      invoiceNumber,
       clientName,
       clientAddress,
       clientOib,
-      note,
       items,
       total,
     });
@@ -444,11 +442,11 @@ export async function POST(req: Request) {
     await transporter.sendMail({
       from: process.env.MAIL_USER,
       to: process.env.MAIL_USER,
-      subject: `Ponuda ${offerNumber}`,
-      text: `Ponuda ${offerNumber} je kreirana. PDF je u privitku.`,
+      subject: `Racun ${invoiceNumber}`,
+      text: `Racun ${invoiceNumber} je kreiran. PDF je u privitku.`,
       attachments: [
         {
-          filename: `ponuda-${offerNumber.replace("/", "-")}.pdf`,
+          filename: `racun-${invoiceNumber.replace("/", "-")}.pdf`,
           content: pdfBuffer,
           contentType: "application/pdf",
         },
@@ -457,7 +455,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      offerNumber,
+      invoiceNumber,
       total,
     });
   } catch (error) {
@@ -466,7 +464,7 @@ export async function POST(req: Request) {
         error:
           error instanceof Error
             ? error.message
-            : "Greska kod kreiranja ponude.",
+            : "Nepoznata greska kod kreiranja racuna.",
       },
       { status: 500 }
     );
