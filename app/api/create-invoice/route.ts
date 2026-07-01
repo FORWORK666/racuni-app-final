@@ -1,15 +1,9 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
 import bwipjs from "bwip-js";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -381,7 +375,7 @@ export async function POST(req: Request) {
     const clientOib = body.clientOib || "";
     const items: Item[] = body.items || [];
 
-    if (!clientName || !items || items.length === 0) {
+    if (!clientName || items.length === 0) {
       return NextResponse.json(
         { error: "Nedostaju podaci za racun." },
         { status: 400 }
@@ -390,55 +384,7 @@ export async function POST(req: Request) {
 
     const total = items.reduce((sum, item) => sum + Number(item.price), 0);
     const year = new Date().getFullYear();
-
-    const { count, error: countError } = await supabase
-      .from("invoices")
-      .select("*", { count: "exact", head: true });
-
-    if (countError) {
-      return NextResponse.json(
-        { error: `SUPABASE COUNT ERROR: ${countError.message}` },
-        { status: 500 }
-      );
-    }
-
-    const invoiceNumber = `${(count || 0) + 1}/${year}`;
-
-    const { data: invoice, error: invoiceError } = await supabase
-      .from("invoices")
-      .insert([
-        {
-          invoice_number: invoiceNumber,
-          client_name: clientName,
-          client_address: clientAddress,
-          client_oib: clientOib,
-          total,
-        },
-      ])
-      .select()
-      .single();
-
-    if (invoiceError) {
-      return NextResponse.json(
-        { error: `SUPABASE INVOICE ERROR: ${invoiceError.message}` },
-        { status: 500 }
-      );
-    }
-
-    const { error: itemsError } = await supabase.from("invoice_items").insert(
-      items.map((item) => ({
-        invoice_id: invoice.id,
-        description: item.description,
-        price: Number(item.price),
-      }))
-    );
-
-    if (itemsError) {
-      return NextResponse.json(
-        { error: `SUPABASE ITEMS ERROR: ${itemsError.message}` },
-        { status: 500 }
-      );
-    }
+    const invoiceNumber = `${Date.now()}/${year}`;
 
     const pdfBuffer = await makePdfBuffer({
       invoiceNumber,
